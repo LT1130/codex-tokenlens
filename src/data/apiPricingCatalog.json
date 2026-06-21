@@ -1,0 +1,25 @@
+{
+  "version": "2026-06-19",
+  "currency": "USD",
+  "unit": 1000000,
+  "serviceTier": "Standard",
+  "source": "https://developers.openai.com/api/docs/pricing",
+  "models": {
+    "gpt-5.5": {
+      "aliases": ["gpt-5.5"],
+      "contextThreshold": 272000,
+      "short": { "input": 5, "cachedInput": 0.5, "output": 30 },
+      "long": { "input": 10, "cachedInput": 1, "output": 45 }
+    },
+    "gpt-5.4": {
+      "aliases": ["gpt-5.4"],
+      "contextThreshold": 272000,
+      "short": { "input": 2.5, "cachedInput": 0.25, "output": 15 },
+      "long": { "input": 5, "cachedInput": 0.5, "output": 22.5 }
+    },
+    "gpt-5.4-mini": {
+      "aliases": ["gpt-5.4-mini"],
+      "short": { "input": 0.75, "cachedInput": 0.075, "output": 4.5 }
+    }
+  }
+}

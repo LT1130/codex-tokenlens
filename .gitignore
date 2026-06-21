@@ -1,0 +1,13 @@
+node_modules
+dist
+bin
+src-tauri/target
+.tmp
+.DS_Store
+.idea
+.vscode
+*.log
+*.local
+neutralinojs.log
+playwright-report
+test-results
