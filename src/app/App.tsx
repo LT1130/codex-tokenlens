@@ -5,6 +5,7 @@ import {
   Boxes,
   Brain,
   CalendarDays,
+  ChevronDown,
   CheckSquare,
   CircleAlert,
   CircleDollarSign,
@@ -20,7 +21,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { PricingSettingsModal } from "../components/PricingSettingsModal";
@@ -361,6 +362,17 @@ export default function App() {
   }, [refreshUsage]);
 
   const projects = useMemo(() => ["all", ...Array.from(new Set(tasks.map((task) => task.project)))], [tasks]);
+  const projectOptions = useMemo(
+    () => projects.map((item) => ({ value: item, label: item === "all" ? t.filters.allProjects : item })),
+    [projects, t.filters.allProjects]
+  );
+  const languageOptions = useMemo(
+    () => [
+      { value: "zh-CN", label: "中文" },
+      { value: "en-US", label: "English" }
+    ],
+    []
+  );
 
   useEffect(() => {
     if (!projects.includes(project)) setProject("all");
@@ -476,24 +488,24 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <label className="project-select">
-              <select value={project} onChange={(event) => setProject(event.target.value)}>
-                {projects.map((item) => (
-                  <option value={item} key={item}>
-                    {item === "all" ? t.filters.allProjects : item}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <PillSelect
+              ariaLabel={t.filters.allProjects}
+              className="project-select"
+              onChange={setProject}
+              options={projectOptions}
+              value={project}
+            />
               </>
             )}
-            <label className="language-select" title="Language">
-              <Languages size={16} />
-              <select value={locale} onChange={(event) => setLocale(event.target.value as Locale)} aria-label="Language">
-                <option value="zh-CN">中文</option>
-                <option value="en-US">English</option>
-              </select>
-            </label>
+            <PillSelect
+              ariaLabel="Language"
+              className="language-select"
+              leadingIcon={<Languages size={16} />}
+              onChange={(value) => setLocale(value as Locale)}
+              options={languageOptions}
+              title="Language"
+              value={locale}
+            />
             {activeSection !== "guide" && (
               <>
             <span className="refresh-status" ref={refreshStatusRef}>{t.header.autoRefresh}</span>
@@ -707,6 +719,88 @@ type ApiCostPanelProps = {
   messages: Messages["cost"];
   onOpenPricing: () => void;
 };
+
+type PillOption = {
+  value: string;
+  label: string;
+};
+
+type PillSelectProps = {
+  ariaLabel: string;
+  className: string;
+  leadingIcon?: ReactNode;
+  onChange: (value: string) => void;
+  options: PillOption[];
+  title?: string;
+  value: string;
+};
+
+function PillSelect({ ariaLabel, className, leadingIcon, onChange, options, title, value }: PillSelectProps) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  const selectedOption = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className={`${className} pill-select${open ? " pill-select--open" : ""}`} ref={rootRef} title={title}>
+      <button
+        aria-controls={listboxId}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+        className="pill-select__trigger"
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+      >
+        {leadingIcon ? <span className="pill-select__icon">{leadingIcon}</span> : null}
+        <span className="pill-select__label">{selectedOption?.label ?? value}</span>
+        <ChevronDown className="pill-select__chevron" size={16} />
+      </button>
+      {open ? (
+        <div className="pill-select__menu" id={listboxId} role="listbox" aria-label={ariaLabel}>
+          {options.map((option) => (
+            <button
+              aria-selected={option.value === value}
+              className={option.value === value ? "pill-select__option pill-select__option--active" : "pill-select__option"}
+              key={option.value}
+              role="option"
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ApiCostPanel({ catalog, estimate, formatter, messages, onOpenPricing }: ApiCostPanelProps) {
   const totalTasks = estimate.pricedTaskCount + estimate.unpricedTaskCount;

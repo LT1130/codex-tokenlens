@@ -28,7 +28,8 @@ test("understanding guide and locale switch render correctly", async ({ page }) 
   await page.getByText("模型到底能看到什么？").click();
   await expect(page.getByText(/模型只看到本次调用实际提供给它的内容/)).toBeVisible();
 
-  await page.getByLabel("Language").selectOption("en-US");
+  await page.getByLabel("Language").click();
+  await page.getByRole("option", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: /Understand Codex: how it works/ })).toBeVisible();
   await expect(page.getByText("Eight concepts worth separating")).toBeVisible();
 });
