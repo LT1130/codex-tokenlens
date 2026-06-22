@@ -1,6 +1,6 @@
 {
   "name": "codex-tokenlens",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A lightweight desktop app for visualizing local Codex token usage.",
   "type": "module",
