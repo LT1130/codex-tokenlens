@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use serde_json::Value;
@@ -17,6 +17,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::Manager;
+
+const RATE_LIMIT_SOURCE_STALENESS_TOLERANCE: Duration = Duration::minutes(30);
 
 #[derive(Debug, Clone, Default)]
 struct TokenUsage {
@@ -71,6 +73,8 @@ struct CodexRateLimitWindow {
 struct CodexRateLimits {
     primary: Option<CodexRateLimitWindow>,
     secondary: Option<CodexRateLimitWindow>,
+    limit_id: Option<String>,
+    limit_name: Option<String>,
     plan_type: Option<String>,
     source_path: String,
     captured_at: String,
@@ -287,7 +291,12 @@ fn scan_codex_snapshot_from_disk() -> Result<CodexUsageSnapshot, String> {
         if let (Some(rate_limits), Some(timestamp)) =
             (parsed.rate_limits.clone(), parsed.rate_limits_timestamp)
         {
-            if latest_rate_limits_timestamp.is_none_or(|latest| timestamp > latest) {
+            if should_replace_rate_limits(
+                latest_rate_limits.as_ref(),
+                latest_rate_limits_timestamp.as_ref(),
+                &rate_limits,
+                &timestamp,
+            ) {
                 latest_rate_limits = Some(rate_limits);
                 latest_rate_limits_timestamp = Some(timestamp);
             }
@@ -645,8 +654,15 @@ fn parse_session_file_from(
         if let (Some(rate_limits), Some(timestamp)) =
             (read_rate_limits(payload, path), line_timestamp)
         {
-            latest_rate_limits = Some(rate_limits);
-            latest_rate_limits_timestamp = Some(timestamp);
+            if should_replace_rate_limits(
+                latest_rate_limits.as_ref(),
+                latest_rate_limits_timestamp.as_ref(),
+                &rate_limits,
+                &timestamp,
+            ) {
+                latest_rate_limits = Some(rate_limits);
+                latest_rate_limits_timestamp = Some(timestamp);
+            }
         }
         if let Some(next_cwd) = payload.get("cwd").and_then(Value::as_str) {
             cwd = Some(next_cwd.to_owned());
@@ -962,6 +978,14 @@ fn read_rate_limits(payload: &Value, path: &Path) -> Option<CodexRateLimits> {
     Some(CodexRateLimits {
         primary,
         secondary,
+        limit_id: value
+            .get("limit_id")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        limit_name: value
+            .get("limit_name")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
         plan_type: value
             .get("plan_type")
             .and_then(Value::as_str)
@@ -969,6 +993,38 @@ fn read_rate_limits(payload: &Value, path: &Path) -> Option<CodexRateLimits> {
         source_path: path.display().to_string(),
         captured_at: Utc::now().to_rfc3339(),
     })
+}
+
+fn should_replace_rate_limits(
+    current: Option<&CodexRateLimits>,
+    current_timestamp: Option<&DateTime<Utc>>,
+    next: &CodexRateLimits,
+    next_timestamp: &DateTime<Utc>,
+) -> bool {
+    let Some(current) = current else {
+        return true;
+    };
+
+    let current_score = rate_limits_preference_score(current);
+    let next_score = rate_limits_preference_score(next);
+    if next_score != current_score {
+        if next_score > current_score {
+            return true;
+        }
+        return current_timestamp.is_none_or(|current_timestamp| {
+            *next_timestamp - *current_timestamp > RATE_LIMIT_SOURCE_STALENESS_TOLERANCE
+        });
+    }
+
+    current_timestamp.is_none_or(|current_timestamp| next_timestamp > current_timestamp)
+}
+
+fn rate_limits_preference_score(rate_limits: &CodexRateLimits) -> u8 {
+    match rate_limits.limit_id.as_deref() {
+        Some("codex") => 2,
+        None => 1,
+        Some(_) => 0,
+    }
 }
 
 fn read_rate_limit_window(value: &Value) -> Option<CodexRateLimitWindow> {
@@ -1131,6 +1187,64 @@ mod tests {
         assert!(!is_official_documentation_url(
             "https://example.com/api/docs/pricing"
         ));
+    }
+
+    #[test]
+    fn account_codex_rate_limits_are_preferred_over_model_specific_snapshots() {
+        let path = temporary_jsonl(
+            r#"{"timestamp":"2026-06-22T14:28:01Z","payload":{"type":"token_count","rate_limits":{"limit_id":"codex","primary":{"used_percent":6.0,"window_minutes":300,"resets_at":1782155311},"secondary":{"used_percent":1.0,"window_minutes":10080,"resets_at":1782742111},"plan_type":"prolite"}}}
+{"timestamp":"2026-06-22T14:28:36Z","payload":{"type":"token_count","rate_limits":{"limit_id":"codex_bengalfox","limit_name":"GPT-5.3-Codex-Spark","primary":{"used_percent":0.0,"window_minutes":300,"resets_at":1782156465},"secondary":{"used_percent":0.0,"window_minutes":10080,"resets_at":1782743265}}}}
+"#,
+        );
+
+        let parsed = parse_session_file(&path).expect("rate limits should parse");
+        fs::remove_file(&path).ok();
+
+        let rate_limits = parsed.rate_limits.expect("rate limits should be present");
+        assert_eq!(rate_limits.limit_id.as_deref(), Some("codex"));
+        assert_eq!(
+            rate_limits
+                .primary
+                .as_ref()
+                .map(|window| window.used_percent),
+            Some(6.0)
+        );
+        assert_eq!(
+            rate_limits
+                .secondary
+                .as_ref()
+                .map(|window| window.used_percent),
+            Some(1.0)
+        );
+    }
+
+    #[test]
+    fn stale_account_rate_limits_do_not_hide_fresher_fallback_snapshots() {
+        let path = temporary_jsonl(
+            r#"{"timestamp":"2026-06-22T14:00:00Z","payload":{"type":"token_count","rate_limits":{"limit_id":"codex","primary":{"used_percent":6.0,"window_minutes":300,"resets_at":1782155311},"secondary":{"used_percent":1.0,"window_minutes":10080,"resets_at":1782742111}}}}
+{"timestamp":"2026-06-22T14:31:00Z","payload":{"type":"token_count","rate_limits":{"limit_id":"codex_bengalfox","primary":{"used_percent":2.0,"window_minutes":300,"resets_at":1782156465},"secondary":{"used_percent":3.0,"window_minutes":10080,"resets_at":1782743265}}}}
+"#,
+        );
+
+        let parsed = parse_session_file(&path).expect("rate limits should parse");
+        fs::remove_file(&path).ok();
+
+        let rate_limits = parsed.rate_limits.expect("rate limits should be present");
+        assert_eq!(rate_limits.limit_id.as_deref(), Some("codex_bengalfox"));
+        assert_eq!(
+            rate_limits
+                .primary
+                .as_ref()
+                .map(|window| window.used_percent),
+            Some(2.0)
+        );
+        assert_eq!(
+            rate_limits
+                .secondary
+                .as_ref()
+                .map(|window| window.used_percent),
+            Some(3.0)
+        );
     }
 
     #[test]

@@ -56,6 +56,8 @@ export type CodexRateLimitWindow = {
 export type CodexRateLimits = {
   primary?: CodexRateLimitWindow;
   secondary?: CodexRateLimitWindow;
+  limitId?: string;
+  limitName?: string;
   planType?: string;
   sourcePath?: string;
   capturedAt?: string;

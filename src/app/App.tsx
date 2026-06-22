@@ -193,6 +193,8 @@ function getUsageSnapshotSignature(
     rateLimits?.secondary?.usedPercent,
     rateLimits?.secondary?.windowMinutes,
     rateLimits?.secondary?.resetsAt,
+    rateLimits?.limitId,
+    rateLimits?.limitName,
     rateLimits?.planType,
     rateLimits?.sourcePath
   ].join(":");
@@ -875,7 +877,7 @@ function DataStatePanel({ description, detail, icon: Icon, onPrimary, onSecondar
 function QuotaPanel({ title, icon: Icon, rateLimit, locale, messages, tone }: QuotaPanelProps) {
   const usedPercent = rateLimit ? Math.min(Math.max(rateLimit.usedPercent, 0), 100) : 0;
   const remainingPercent = rateLimit ? Math.max(100 - usedPercent, 0) : 0;
-  const resetLabel = rateLimit ? formatResetTime(rateLimit.resetsAt, locale) : messages.unavailable;
+  const resetLabel = rateLimit ? formatResetTime(rateLimit.resetsAt, rateLimit.windowMinutes, locale) : messages.unavailable;
 
   return (
     <section className={`panel quota-card quota-card--${tone}`}>
@@ -907,9 +909,11 @@ function QuotaPanel({ title, icon: Icon, rateLimit, locale, messages, tone }: Qu
   );
 }
 
-function formatResetTime(value: number, locale: Locale) {
+function formatResetTime(value: number, windowMinutes: number, locale: Locale) {
   const date = new Date(value * 1000);
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  return new Intl.DateTimeFormat(locale, sameDay ? { hour: "2-digit", minute: "2-digit" } : { month: "short", day: "numeric" }).format(date);
+  const isShortWindow = windowMinutes <= 24 * 60;
+  return new Intl.DateTimeFormat(
+    locale,
+    isShortWindow ? { hour: "2-digit", minute: "2-digit" } : { month: "short", day: "numeric" }
+  ).format(date);
 }
