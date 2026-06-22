@@ -85,13 +85,23 @@ Reasoning output 已包含在 output 中，不会再次计费。估算使用本�
 
 ## macOS 安装
 
-当前发布目标为 Apple Silicon Mac。
+当前 macOS 发布目标为 Apple Silicon。
 
 1. 从 [GitHub Releases](https://github.com/LT1130/codex-tokenlens/releases) 下载 DMG。
 2. 将文件的 SHA-256 与发布页提供的校验值进行比较。
 3. 将 **Codex TokenLens** 拖入 `Applications`。
 
 免费发布包使用 ad-hoc 签名，但没有经过 Apple 公证。首次启动时，macOS 可能因无法验证开发者而阻止运行。确认下载来源和校验值后，在 Finder 中按住 Control 点击应用并选择“打开”；也可以按照 [Apple 官方说明](https://support.apple.com/zh-cn/guide/mac-help/mh40616/mac)，在“系统设置 → 隐私与安全性”中只允许这个应用运行。无需全局关闭 Gatekeeper。
+
+## Windows 安装
+
+当前 Windows 发布目标为 x64。
+
+1. 从 [GitHub Releases](https://github.com/LT1130/codex-tokenlens/releases) 下载 `.exe` 安装器。
+2. 将文件的 SHA-256 与发布页提供的校验值进行比较。
+3. 运行安装器并按提示完成安装。
+
+当前 Windows 安装器未签名，因此首次运行时，Windows 可能会显示 SmartScreen 或未知发布者提示。确认下载来源和校验值后，可以只对这个应用继续运行。
 
 ## 开发
 
@@ -100,6 +110,8 @@ Reasoning output 已包含在 output 中，不会再次计费。估算使用本�
 - Node.js 22 或更高版本
 - Rust 与 Cargo
 - macOS 上的 Xcode Command Line Tools
+- Windows 上勾选了 `Desktop development with C++` 的 Microsoft C++ Build Tools
+- Windows 上的 Microsoft Edge WebView2（通常在受支持系统中已预装）
 
 ### 从源码运行桌面应用
 
@@ -166,7 +178,10 @@ npx playwright install chromium
 npm run desktop:build
 ```
 
-macOS 产物位于 `src-tauri/target/release/bundle/`。
+桌面安装包产物位于 `src-tauri/target/release/bundle/`。
+
+- macOS 安装包位于 `src-tauri/target/release/bundle/dmg/`
+- Windows 安装包位于 `src-tauri/target/release/bundle/nsis/` 和 `src-tauri/target/release/bundle/msi/`
 
 ## 架构
 
@@ -184,7 +199,7 @@ Codex JSONL 日志
 - `src/i18n/`：中文与英文界面和学习内容
 - `e2e/`：Playwright 浏览器冒烟测试
 
-Windows 和 Linux 代码路径已经存在，但仍需在对应系统完成打包与完整桌面行为验证。
+macOS Apple Silicon 和 Windows x64 已完成桌面打包与基础启动验证。Linux 代码路径已经存在，但 Linux 打包与完整桌面行为仍需后续验证。
 
 ## 许可证
 

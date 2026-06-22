@@ -85,13 +85,23 @@ Reasoning output is already included in output and is not charged again. Estimat
 
 ## Install on macOS
 
-The current release target is Apple Silicon macOS.
+The current macOS release target is Apple Silicon.
 
 1. Download the DMG from [GitHub Releases](https://github.com/LT1130/codex-tokenlens/releases).
 2. Compare its SHA-256 value with the checksum shown on the release page.
 3. Drag **Codex TokenLens** into `Applications`.
 
 The free release is ad-hoc signed but not Apple-notarized. On first launch, macOS may block it because the developer cannot be verified. After confirming the download and checksum, Control-click the app in Finder and choose **Open**, or follow [Apple’s instructions](https://support.apple.com/guide/mac-help/mh40616/mac) to allow this individual app under **System Settings → Privacy & Security**. You do not need to disable Gatekeeper globally.
+
+## Install on Windows
+
+The current Windows release target is x64.
+
+1. Download the `.exe` installer from [GitHub Releases](https://github.com/LT1130/codex-tokenlens/releases).
+2. Compare its SHA-256 value with the checksum shown on the release page.
+3. Run the installer and follow the setup steps.
+
+The Windows installer is currently unsigned, so Windows may show a SmartScreen or unknown publisher warning on first launch. After confirming the download source and checksum, you can choose to continue for this app specifically.
 
 ## Development
 
@@ -100,6 +110,8 @@ The free release is ad-hoc signed but not Apple-notarized. On first launch, macO
 - Node.js 22 or later
 - Rust and Cargo
 - Xcode Command Line Tools on macOS
+- Microsoft C++ Build Tools with `Desktop development with C++` on Windows
+- Microsoft Edge WebView2 on Windows (usually already installed on supported systems)
 
 ### Run the desktop app from source
 
@@ -166,7 +178,10 @@ npx playwright install chromium
 npm run desktop:build
 ```
 
-macOS bundles are written to `src-tauri/target/release/bundle/`.
+Bundles are written to `src-tauri/target/release/bundle/`.
+
+- macOS installers are written under `src-tauri/target/release/bundle/dmg/`
+- Windows installers are written under `src-tauri/target/release/bundle/nsis/` and `src-tauri/target/release/bundle/msi/`
 
 ## Architecture
 
@@ -184,7 +199,7 @@ Codex JSONL logs
 - `src/i18n/`: English and Simplified Chinese UI and learning content
 - `e2e/`: Playwright browser smoke tests
 
-Windows and Linux code paths exist, but packaging and full desktop behavior still require testing on those systems.
+macOS Apple Silicon and Windows x64 have been validated for desktop packaging and basic app launch. Linux code paths exist, but Linux packaging and full desktop behavior still require testing.
 
 ## License
 
