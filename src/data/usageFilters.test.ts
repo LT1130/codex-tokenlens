@@ -25,6 +25,11 @@ describe("usage date filters", () => {
     expect(isWithinRange(taskAt("2026-06-11T23:59:59"), "7d", { startDate: "", endDate: "" }, now)).toBe(false);
   });
 
+  it("includes the entire first day of the last thirty days", () => {
+    expect(isWithinRange(taskAt("2026-05-20T00:00:00"), "30d", { startDate: "", endDate: "" }, now)).toBe(true);
+    expect(isWithinRange(taskAt("2026-05-19T23:59:59"), "30d", { startDate: "", endDate: "" }, now)).toBe(false);
+  });
+
   it("uses inclusive custom-date boundaries", () => {
     const window = { startDate: "2026-06-10", endDate: "2026-06-12" };
     expect(isWithinRange(taskAt("2026-06-10T00:00:00"), "custom", window, now)).toBe(true);

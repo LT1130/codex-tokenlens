@@ -458,8 +458,8 @@ export default function App() {
       <section className="workspace" aria-busy={usageSource === "loading"}>
         <header className="topbar">
           <div>
-            <h1>{activeSection === "guide" ? t.nav.guide : "Codex Usage"}</h1>
-            <p>{activeSection === "guide" ? guideContent[locale].eyebrow : t.header.title}</p>
+            <h1>{activeSection === "guide" ? t.nav.guide : t.header.title}</h1>
+            <p>{activeSection === "guide" ? guideContent[locale].eyebrow : t.header.eyebrow}</p>
           </div>
           <div className="topbar__actions">
             {activeSection !== "guide" && (
@@ -468,6 +468,7 @@ export default function App() {
               {[
                 ["today", t.ranges.today],
                 ["7d", t.ranges.last7d],
+                ["30d", t.ranges.last30d],
                 ["custom", t.ranges.custom]
               ].map(([value, label]) => (
                 <button className={range === value ? "range-tab range-tab--active" : "range-tab"} key={value} type="button" onClick={() => setRange(value as TimeRange)}>

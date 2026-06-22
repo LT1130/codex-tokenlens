@@ -2,9 +2,10 @@ import { expect, test } from "@playwright/test";
 
 test("dashboard, call details, and pricing settings remain usable", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Codex Usage" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Codex Token 用量" })).toBeVisible();
   await expect(page.getByText("输入与输出构成")).toBeVisible();
   await page.getByRole("button", { name: "最近 7 天" }).click();
+  await page.getByRole("button", { name: "最近 30 天" }).click();
 
   const firstTask = page.locator(".task-row").first();
   await expect(firstTask).toBeVisible();
