@@ -670,6 +670,22 @@ fn parse_session_file_from(
         if let Some(next_model) = payload.get("model").and_then(Value::as_str) {
             model = Some(next_model.to_owned());
         }
+        if is_goal_continuation_prompt(payload) {
+            if turn_active && pending_turn.is_none() {
+                if let Some(previous_task) = tasks.pop() {
+                    if let Some(turn) = task_to_pending_turn(previous_task.clone()) {
+                        turn_start_usage = latest_turn_usage
+                            .as_ref()
+                            .map(|usage| subtract_usage(usage, Some(&task_usage(&previous_task))));
+                        current_usage_segments = previous_task.usage_segments.clone();
+                        pending_turn = Some(turn);
+                    } else {
+                        tasks.push(previous_task);
+                    }
+                }
+            }
+            continue;
+        }
         if let (Some(text), Some(timestamp)) = (read_user_prompt(payload), line_timestamp) {
             if !saw_lifecycle {
                 if let (Some(turn), Some(usage)) = (pending_turn.take(), latest_turn_usage.clone())
@@ -836,6 +852,26 @@ fn build_turn_task(
         usage_segments,
         status: status.to_string(),
     }
+}
+
+fn task_usage(task: &UsageTask) -> TokenUsage {
+    TokenUsage {
+        input_tokens: task.input,
+        cached_input_tokens: task.cache,
+        output_tokens: task.output,
+        reasoning_output_tokens: task.reasoning,
+    }
+}
+
+fn task_to_pending_turn(task: UsageTask) -> Option<PendingTurn> {
+    Some(PendingTurn {
+        id: task.id,
+        title: task.title,
+        project: task.project,
+        project_path: task.project_path,
+        started_at: parse_timestamp(&task.started_at)?,
+        model: task.model,
+    })
 }
 
 fn subtract_usage(total: &TokenUsage, baseline: Option<&TokenUsage>) -> TokenUsage {
@@ -1056,6 +1092,28 @@ fn read_user_prompt(payload: &Value) -> Option<String> {
     normalize_prompt(&text)
 }
 
+fn is_goal_continuation_prompt(payload: &Value) -> bool {
+    if payload.get("role").and_then(Value::as_str) != Some("user") {
+        return false;
+    }
+
+    payload
+        .get("content")
+        .and_then(Value::as_array)
+        .is_some_and(|content| {
+            content.iter().any(|item| {
+                item.get("text")
+                    .or_else(|| item.get("input_text"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|text| {
+                        text.trim_start()
+                            .to_lowercase()
+                            .starts_with("<codex_internal_context source=\"goal\"")
+                    })
+            })
+        })
+}
+
 fn read_prompt_content(
     item: &Value,
     image_index: &mut usize,
@@ -1167,14 +1225,18 @@ pub fn run() {
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn temporary_jsonl(contents: &str) -> PathBuf {
         let suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after the Unix epoch")
             .as_nanos();
-        let path = env::temp_dir().join(format!("codex-tokenlens-test-{suffix}.jsonl"));
+        let counter = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = env::temp_dir().join(format!("codex-tokenlens-test-{suffix}-{counter}.jsonl"));
         fs::write(&path, contents).expect("test JSONL should be writable");
         path
     }
@@ -1337,6 +1399,37 @@ not valid json
         assert_eq!(parsed.tasks[0].output, 10);
         assert_eq!(parsed.tasks[0].updated_at, "2026-06-18T08:00:12+00:00");
         assert!(!parsed.turn_active);
+    }
+
+    #[test]
+    fn goal_continuations_extend_the_original_turn() {
+        let path = temporary_jsonl(
+            r#"{"timestamp":"2026-06-18T23:50:00Z","payload":{"type":"task_started","turn_id":"turn-1"}}
+{"timestamp":"2026-06-18T23:50:01Z","payload":{"cwd":"/tmp/goal-project","model":"gpt-5.5","role":"user","content":[{"type":"input_text","text":"Run a long goal"}]}}
+{"timestamp":"2026-06-18T23:55:00Z","payload":{"info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":60,"output_tokens":10},"last_token_usage":{"input_tokens":100,"cached_input_tokens":60,"output_tokens":10}}}}
+{"timestamp":"2026-06-18T23:56:00Z","payload":{"type":"task_complete","turn_id":"turn-1"}}
+{"timestamp":"2026-06-19T00:05:00Z","payload":{"type":"task_started","turn_id":"turn-2"}}
+{"timestamp":"2026-06-19T00:05:00Z","payload":{"role":"user","content":[{"type":"input_text","text":"<environment_context><current_date>2026-06-19</current_date></environment_context>"}]}}
+{"timestamp":"2026-06-19T00:05:01Z","payload":{"role":"user","content":[{"type":"input_text","text":"<codex_internal_context source=\"goal\">Continue working toward the active thread goal.</codex_internal_context>"}]}}
+{"timestamp":"2026-06-19T00:06:00Z","payload":{"info":{"total_token_usage":{"input_tokens":250,"cached_input_tokens":120,"output_tokens":30,"reasoning_output_tokens":5},"last_token_usage":{"input_tokens":150,"cached_input_tokens":60,"output_tokens":20,"reasoning_output_tokens":5}}}}
+"#,
+        );
+
+        let parsed = parse_session_file(&path).expect("goal continuation should parse");
+        fs::remove_file(&path).ok();
+
+        assert_eq!(parsed.tasks.len(), 1);
+        let task = &parsed.tasks[0];
+        assert_eq!(task.title, "Run a long goal");
+        assert_eq!(task.status, "inProgress");
+        assert_eq!(task.started_at, "2026-06-18T23:50:01+00:00");
+        assert_eq!(task.updated_at, "2026-06-19T00:06:00+00:00");
+        assert_eq!(task.project, "goal-project");
+        assert_eq!(task.input, 250);
+        assert_eq!(task.cache, 120);
+        assert_eq!(task.output, 30);
+        assert_eq!(task.reasoning, 5);
+        assert_eq!(task.usage_segments.len(), 2);
     }
 
     #[test]

@@ -4,7 +4,10 @@ import type { CodexRateLimits, ScanDiagnostics, UsageTask } from "./usageTypes";
 
 export type UsageSource = "loading" | "codex" | "sample" | "empty" | "error";
 
-const SCAN_TIMEOUT_MS = 15_000;
+const SCAN_TIMEOUT_MS = 60_000;
+const SCAN_BUSY_RETRY_DELAY_MS = 1_000;
+const SCAN_BUSY_RETRY_ATTEMPTS = 20;
+const SCAN_BUSY_MESSAGE = "A Codex log scan is already in progress";
 
 export type UsageLoadResult = {
   source: UsageSource;
@@ -26,7 +29,7 @@ export async function loadUsageTasks(): Promise<UsageLoadResult> {
   }
 
   try {
-    const snapshot = await invokeWithTimeout<CodexUsageSnapshot>("scan_codex_snapshot");
+    const snapshot = await invokeSnapshotWithBusyRetry();
     if (snapshot.tasks.length > 0) {
       return { source: "codex", tasks: snapshot.tasks, rateLimits: snapshot.rateLimits, diagnostics: snapshot.diagnostics };
     }
@@ -53,6 +56,20 @@ export async function loadUsageTasks(): Promise<UsageLoadResult> {
   }
 }
 
+async function invokeSnapshotWithBusyRetry() {
+  for (let attempt = 0; attempt <= SCAN_BUSY_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await invokeWithTimeout<CodexUsageSnapshot>("scan_codex_snapshot");
+    } catch (error) {
+      if (!isScanBusyError(error) || attempt === SCAN_BUSY_RETRY_ATTEMPTS) {
+        throw error;
+      }
+      await delay(SCAN_BUSY_RETRY_DELAY_MS);
+    }
+  }
+  throw new Error(SCAN_BUSY_MESSAGE);
+}
+
 async function invokeWithTimeout<T>(command: string, timeoutMs = SCAN_TIMEOUT_MS) {
   let timeout: number | undefined;
   try {
@@ -69,4 +86,12 @@ async function invokeWithTimeout<T>(command: string, timeoutMs = SCAN_TIMEOUT_MS
   } finally {
     if (timeout !== undefined) window.clearTimeout(timeout);
   }
+}
+
+function isScanBusyError(error: unknown) {
+  return (error instanceof Error ? error.message : String(error)).includes(SCAN_BUSY_MESSAGE);
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
