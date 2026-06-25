@@ -197,6 +197,11 @@ export type Messages = {
     goToPage: string;
     pageUnit: string;
     status: string;
+    duration: string;
+    durationDays: (value: number) => string;
+    durationHours: (value: number) => string;
+    durationMinutes: (value: number) => string;
+    durationSeconds: (value: number) => string;
     completed: string;
     inProgress: string;
     aborted: string;
@@ -402,6 +407,11 @@ export const messages: Record<Locale, Messages> = {
       goToPage: "跳至",
       pageUnit: "页",
       status: "状态",
+      duration: "耗时",
+      durationDays: (value) => `${value}天`,
+      durationHours: (value) => `${value}小时`,
+      durationMinutes: (value) => `${value}分`,
+      durationSeconds: (value) => `${value}秒`,
       completed: "已完成",
       inProgress: "进行中",
       aborted: "已中断"
@@ -616,6 +626,11 @@ export const messages: Record<Locale, Messages> = {
       goToPage: "Go to",
       pageUnit: "page",
       status: "Status",
+      duration: "Duration",
+      durationDays: (value) => `${value}d`,
+      durationHours: (value) => `${value}h`,
+      durationMinutes: (value) => `${value}m`,
+      durationSeconds: (value) => `${value}s`,
       completed: "Completed",
       inProgress: "In progress",
       aborted: "Aborted"

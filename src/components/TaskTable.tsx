@@ -40,6 +40,35 @@ function getActivityTime(task: UsageTask) {
   return task.updatedAt ?? task.startedAt;
 }
 
+function getDurationSeconds(task: UsageTask) {
+  const started = new Date(task.startedAt).getTime();
+  const updated = new Date(getActivityTime(task)).getTime();
+  if (!Number.isFinite(started) || !Number.isFinite(updated) || updated < started) {
+    return task.durationMinutes * 60;
+  }
+  return Math.max(0, Math.round((updated - started) / 1000));
+}
+
+function formatDuration(task: UsageTask, messages: Messages["table"]) {
+  const totalSeconds = getDurationSeconds(task);
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const remainingMinutes = totalMinutes % 60;
+  const remainingSeconds = totalSeconds % 60;
+  const parts: string[] = [];
+
+  if (days > 0) parts.push(messages.durationDays(days));
+  if (hours > 0) parts.push(messages.durationHours(hours));
+  if (days === 0 && remainingMinutes > 0) parts.push(messages.durationMinutes(remainingMinutes));
+  if (days === 0 && hours === 0 && totalMinutes < 10 && remainingSeconds > 0) {
+    parts.push(messages.durationSeconds(remainingSeconds));
+  }
+  if (parts.length === 0) parts.push(messages.durationSeconds(0));
+
+  return parts.join(" ");
+}
+
 function truncateTaskTitle(value: string, maxChars = 35) {
   return value.length > maxChars ? `${value.slice(0, maxChars)}...` : value;
 }
@@ -164,11 +193,14 @@ export function TaskTable({ tasks, filterKey, locale, messages, onRevealPath, pr
               return (
                 <Fragment key={task.id}>
                   <tr className={expanded ? "task-row task-row--expanded" : "task-row"} key={task.id} onClick={() => setExpandedId(expanded ? null : task.id)}>
-                    <td>{formatTime(getActivityTime(task), locale)}</td>
+                    <td><span className="task-time">{formatTime(getActivityTime(task), locale)}</span></td>
                     <td>
-                      <span className={task.status === "inProgress" ? "task-status task-status--active" : "task-status"}>
-                        {task.status === "inProgress" ? messages.inProgress : task.status === "aborted" ? messages.aborted : messages.completed}
-                      </span>
+                      <div className={task.status === "inProgress" ? "task-status-cell task-status-cell--active" : "task-status-cell"}>
+                        <span className={task.status === "inProgress" ? "task-status task-status--active" : "task-status"}>
+                          {task.status === "inProgress" ? messages.inProgress : task.status === "aborted" ? messages.aborted : messages.completed}
+                        </span>
+                        <span className="task-duration"><small>{messages.duration}</small>{formatDuration(task, messages)}</span>
+                      </div>
                     </td>
                     <td>{task.project}</td>
                     <td>

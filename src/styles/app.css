@@ -286,6 +286,47 @@ button {
   color: #15803d;
 }
 
+.task-status-cell {
+  display: inline-grid;
+  min-width: 88px;
+  gap: 3px;
+  justify-items: start;
+}
+
+.task-status-cell .task-status {
+  margin-top: 0;
+}
+
+.task-time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.task-duration {
+  margin-top: 0;
+  color: #64748b;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.task-duration small {
+  margin-right: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.task-status-cell--active .task-duration {
+  color: #2563eb;
+  font-weight: 650;
+}
+
+.task-status-cell--active .task-duration small {
+  color: #7c8aa0;
+}
+
 .search-box {
   gap: 8px;
   width: 290px;
