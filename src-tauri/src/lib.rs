@@ -212,15 +212,10 @@ fn scan_codex_snapshot_from_disk() -> Result<CodexUsageSnapshot, String> {
             .lock()
             .map_err(|_| "Codex dirty-path lock was poisoned".to_string())?;
         let mut files = dirty.drain().collect::<HashSet<_>>();
-        // Some platform file watchers coalesce rapid JSONL appends into a directory event.
-        // Always stat active sessions on refresh so a just-written completion event is not
-        // hidden behind the next watcher notification or the five-minute full-scan fallback.
-        files.extend(
-            cache
-                .iter()
-                .filter(|(_, entry)| entry.parsed.turn_active)
-                .map(|(path, _)| path.clone()),
-        );
+        // Some platform file watchers coalesce or miss rapid JSONL appends. Stat cached
+        // sessions on each refresh so fresh token and quota snapshots are not hidden behind
+        // the five-minute full-scan fallback; unchanged files are skipped below.
+        files.extend(cache.keys().cloned());
         files.into_iter().collect::<Vec<_>>()
     };
 
