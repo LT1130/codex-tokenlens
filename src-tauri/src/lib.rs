@@ -429,11 +429,13 @@ fn reveal_path(path: String) -> Result<(), String> {
     }
 }
 
-const OFFICIAL_DOCUMENTATION_URLS: [&str; 4] = [
+const OFFICIAL_DOCUMENTATION_URLS: [&str; 6] = [
     "https://developers.openai.com/api/docs/pricing",
     "https://developers.openai.com/codex/prompting",
     "https://developers.openai.com/codex/learn/best-practices",
     "https://developers.openai.com/codex/agent-approvals-security",
+    "https://developers.openai.com/codex/changelog",
+    "https://developers.openai.com/codex/whats-new",
 ];
 
 #[tauri::command]

@@ -59,9 +59,14 @@ export type TaskCost = {
 
 function findModelPrice(model: string, catalog: PricingCatalog): ModelPrice | undefined {
   const normalized = model.trim().toLowerCase();
-  return Object.values(catalog.models).find((price) =>
-    price.aliases.some((alias) => normalized === alias || normalized.startsWith(`${alias}-20`))
-  );
+  const prices = Object.values(catalog.models)
+    .flatMap((price) => price.aliases.map((alias) => ({ alias: alias.toLowerCase(), price })))
+    .sort((left, right) => right.alias.length - left.alias.length);
+  return prices.find(({ alias }) =>
+    normalized === alias ||
+    normalized.startsWith(`${alias}-20`) ||
+    normalized.startsWith(`${alias}-`)
+  )?.price;
 }
 
 function segmentCost(segment: UsageSegment, price: ModelPrice, useContextTier: boolean, unit: number) {
@@ -207,12 +212,29 @@ export function clonePricingCatalog(catalog: PricingCatalog = API_PRICING_CATALO
   return JSON.parse(JSON.stringify(catalog)) as PricingCatalog;
 }
 
+export function mergePricingCatalog(
+  saved: PricingCatalog,
+  base: PricingCatalog = API_PRICING_CATALOG
+): PricingCatalog {
+  const baseCatalog = clonePricingCatalog(base);
+  const savedCatalog = clonePricingCatalog(saved);
+  return {
+    ...baseCatalog,
+    models: {
+      ...baseCatalog.models,
+      ...savedCatalog.models
+    },
+    version: `${base.version}-custom`,
+    customized: true
+  };
+}
+
 export function loadSavedPricingCatalog(storage: Pick<Storage, "getItem">): PricingCatalog | undefined {
   const raw = storage.getItem(PRICING_STORAGE_KEY);
   if (!raw) return undefined;
   try {
     const parsed = JSON.parse(raw);
-    return isPricingCatalog(parsed) ? parsed : undefined;
+    return isPricingCatalog(parsed) ? mergePricingCatalog(parsed) : undefined;
   } catch {
     return undefined;
   }

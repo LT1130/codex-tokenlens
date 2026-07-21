@@ -146,8 +146,13 @@ export type Messages = {
     save: string;
   };
   quota: {
-    fiveHour: string;
-    sevenDay: string;
+    primaryWindow: string;
+    secondaryWindow: string;
+    windowTitle: (duration: string) => string;
+    minutes: (value: number) => string;
+    hours: (value: number) => string;
+    days: (value: number) => string;
+    weeks: (value: number) => string;
     remaining: string;
     usedLabel: string;
     resetAt: string;
@@ -356,8 +361,13 @@ export const messages: Record<Locale, Messages> = {
       save: "保存并应用"
     },
     quota: {
-      fiveHour: "5 小时额度",
-      sevenDay: "7 天额度",
+      primaryWindow: "主要额度窗口",
+      secondaryWindow: "第二额度窗口",
+      windowTitle: (duration) => `${duration}额度`,
+      minutes: (value) => `${value} 分钟`,
+      hours: (value) => `${value} 小时`,
+      days: (value) => `${value} 天`,
+      weeks: (value) => `${value} 周`,
       remaining: "剩余",
       usedLabel: "已用",
       resetAt: "重置时间",
@@ -575,8 +585,13 @@ export const messages: Record<Locale, Messages> = {
       save: "Save and apply"
     },
     quota: {
-      fiveHour: "5h Quota",
-      sevenDay: "7d Quota",
+      primaryWindow: "Primary quota window",
+      secondaryWindow: "Additional quota window",
+      windowTitle: (duration) => `${duration} quota`,
+      minutes: (value) => `${value} min`,
+      hours: (value) => `${value}h`,
+      days: (value) => `${value}d`,
+      weeks: (value) => `${value}w`,
       remaining: "Remaining",
       usedLabel: "Used",
       resetAt: "Reset",

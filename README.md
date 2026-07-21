@@ -48,7 +48,7 @@ Codex TokenLens reads Codex JSONL session logs on your computer and turns them i
 - Search, project filtering, sortable task details, expansion, and pagination
 - Input, output, cached input, and reasoning output breakdowns
 - Per-call model, context tier, token usage, and Standard API equivalent cost
-- Local, versioned pricing catalog with user-defined model pricing
+- Local, versioned pricing catalog with GPT-5.6 Sol/Terra/Luna coverage and user-defined model pricing
 - Primary and secondary Codex rate-limit windows
 - CSV export with local timestamps and Excel-compatible UTF-8
 - Incremental JSONL parsing, filesystem watching, and 15-second refreshes
@@ -81,7 +81,7 @@ Standard API equivalent cost is estimated as:
 + output × output price
 ```
 
-Reasoning output is already included in output and is not charged again. Estimates use the local pricing catalog and do not represent a Codex subscription bill. Unknown models are clearly marked instead of being assigned a guessed price.
+Reasoning output is already included in output and is not charged again. Estimates use the local pricing catalog and do not represent a Codex subscription bill. Unknown models are clearly marked instead of being assigned a guessed price. If you saved custom pricing on an older release, TokenLens keeps your custom models while merging in newer bundled model coverage.
 
 ## Install on macOS
 

@@ -670,21 +670,23 @@ export default function App() {
           </div>
           <aside className="quota-stack">
             <QuotaPanel
-              title={t.quota.fiveHour}
+              fallbackTitle={t.quota.primaryWindow}
               icon={Activity}
               rateLimit={rateLimits?.primary}
               locale={locale}
               messages={t.quota}
               tone="green"
             />
-            <QuotaPanel
-              title={t.quota.sevenDay}
-              icon={CalendarDays}
-              rateLimit={rateLimits?.secondary}
-              locale={locale}
-              messages={t.quota}
-              tone="blue"
-            />
+            {rateLimits?.secondary && (
+              <QuotaPanel
+                fallbackTitle={t.quota.secondaryWindow}
+                icon={CalendarDays}
+                rateLimit={rateLimits.secondary}
+                locale={locale}
+                messages={t.quota}
+                tone="blue"
+              />
+            )}
           </aside>
         </section>
           </>
@@ -837,7 +839,7 @@ function ApiCostPanel({ catalog, estimate, formatter, messages, onOpenPricing }:
 }
 
 type QuotaPanelProps = {
-  title: string;
+  fallbackTitle: string;
   icon: LucideIcon;
   rateLimit?: CodexRateLimitWindow;
   locale: Locale;
@@ -874,10 +876,11 @@ function DataStatePanel({ description, detail, icon: Icon, onPrimary, onSecondar
   );
 }
 
-function QuotaPanel({ title, icon: Icon, rateLimit, locale, messages, tone }: QuotaPanelProps) {
+function QuotaPanel({ fallbackTitle, icon: Icon, rateLimit, locale, messages, tone }: QuotaPanelProps) {
   const usedPercent = rateLimit ? Math.min(Math.max(rateLimit.usedPercent, 0), 100) : 0;
   const remainingPercent = rateLimit ? Math.max(100 - usedPercent, 0) : 0;
   const resetLabel = rateLimit ? formatResetTime(rateLimit.resetsAt, rateLimit.windowMinutes, locale) : messages.unavailable;
+  const title = rateLimit ? messages.windowTitle(formatQuotaWindow(rateLimit.windowMinutes, messages)) : fallbackTitle;
 
   return (
     <section className={`panel quota-card quota-card--${tone}`}>
@@ -907,6 +910,19 @@ function QuotaPanel({ title, icon: Icon, rateLimit, locale, messages, tone }: Qu
       </div>
     </section>
   );
+}
+
+function formatQuotaWindow(windowMinutes: number, messages: Messages["quota"]) {
+  if (windowMinutes % (7 * 24 * 60) === 0) {
+    return messages.weeks(windowMinutes / (7 * 24 * 60));
+  }
+  if (windowMinutes % (24 * 60) === 0) {
+    return messages.days(windowMinutes / (24 * 60));
+  }
+  if (windowMinutes % 60 === 0) {
+    return messages.hours(windowMinutes / 60);
+  }
+  return messages.minutes(windowMinutes);
 }
 
 function formatResetTime(value: number, windowMinutes: number, locale: Locale) {

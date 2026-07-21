@@ -5,6 +5,7 @@ import {
   estimateApiCost,
   estimateTaskApiCost,
   loadSavedPricingCatalog,
+  mergePricingCatalog,
   savePricingCatalog
 } from "./apiPricing";
 import type { UsageTask } from "./usageTypes";
@@ -72,6 +73,44 @@ describe("API equivalent cost", () => {
     expect(result.unpricedModels).toEqual(["future-model"]);
   });
 
+  it("prices current GPT-5.6 Codex models and dated model IDs", () => {
+    const sol = estimateTaskApiCost(task({
+      model: "gpt-5.6-sol-2026-07-18",
+      input: 300_000,
+      cache: 100_000,
+      output: 1_000,
+      reasoning: 0,
+      usageSegments: [{ input: 300_000, cache: 100_000, output: 1_000, reasoning: 0 }]
+    }));
+    const luna = estimateTaskApiCost(task({
+      model: "gpt-5.6-luna",
+      input: 10_000,
+      cache: 1_000,
+      output: 1_000
+    }));
+    const codex = estimateTaskApiCost(task({
+      model: "gpt-5.3-codex",
+      input: 1_000_000,
+      cache: 100_000,
+      output: 10_000
+    }));
+
+    expect(sol?.calls?.[0].tier).toBe("long");
+    expect(sol?.total).toBeCloseTo(2 + 0.1 + 0.045);
+    expect(luna?.total).toBeCloseTo(0.009 + 0.0001 + 0.006);
+    expect(codex?.total).toBeCloseTo(1.575 + 0.0175 + 0.14);
+  });
+
+  it("uses the longest model alias before suffix matching", () => {
+    const mini = estimateTaskApiCost(task({
+      model: "gpt-5.4-mini-2026-03-18",
+      input: 1_000_000,
+      cache: 0,
+      output: 0
+    }));
+    expect(mini?.total).toBeCloseTo(0.75);
+  });
+
   it("falls back to an aggregate estimate when call totals do not match the task", () => {
     const cost = estimateTaskApiCost(task({
       usageSegments: [{ input: 10, cache: 5, output: 1, reasoning: 0 }]
@@ -101,5 +140,21 @@ describe("API equivalent cost", () => {
     expect(loadSavedPricingCatalog(storage)?.customized).toBe(true);
     values.set(PRICING_STORAGE_KEY, "{bad json");
     expect(loadSavedPricingCatalog(storage)).toBeUndefined();
+  });
+
+  it("merges older custom pricing with the current built-in catalog", () => {
+    const saved = clonePricingCatalog();
+    delete saved.models["gpt-5.6-sol"];
+    saved.models["local-model"] = {
+      aliases: ["local-model"],
+      short: { input: 9, cachedInput: 1, output: 18 }
+    };
+
+    const merged = mergePricingCatalog(saved);
+
+    expect(merged.customized).toBe(true);
+    expect(merged.version).toBe("2026-07-21-custom");
+    expect(merged.models["gpt-5.6-sol"]).toBeDefined();
+    expect(merged.models["local-model"]).toBeDefined();
   });
 });

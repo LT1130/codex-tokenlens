@@ -33,7 +33,7 @@ export const guideContent: Record<Locale, GuideContent> = {
     eyebrow: "AI 智能体认知指南",
     title: "理解 Codex：它如何工作，又为什么会产生这些用量？",
     subtitle: "不需要了解模型数学。先建立正确的心智模型，你就能更清楚地使用 Codex、判断结果，也能真正看懂 TokenLens 中的每一个数字。",
-    verified: "内容依据 OpenAI 官方 Codex 文档与 TokenLens 实际读取的本地日志字段整理",
+    verified: "内容依据 OpenAI 官方 Codex 文档、价格页、变更日志与 TokenLens 实际读取的本地日志字段整理",
     formulaLead: "Codex 不只是一个大模型",
     formulaParts: ["模型", "指令", "上下文", "工具", "执行循环"],
     formulaResult: "Codex 智能体",
@@ -154,7 +154,8 @@ export const guideContent: Record<Locale, GuideContent> = {
           "可以计算输入、缓存、输出、推理、短/长上下文档位和Standard API等价成本。",
           "旧日志缺少逐次快照时只能展示任务汇总，不能可靠拆分调用次数。",
           "无法仅凭日志完整还原每次请求的所有隐藏上下文，也无法精确复制Codex订阅额度算法。",
-          "应用只读取本机Codex日志；自定义价格保存在本机，不会上传。"
+          "Codex 现在可通过 ChatGPT 桌面应用中的独立 Codex 视图、CLI 和 IDE 扩展使用；TokenLens 只读取本机 Codex 日志，不读取 Chat 或 Work 历史。",
+          "自定义价格保存在本机，不会上传。"
         ],
         note: "把TokenLens当作用量分析与理解工具，而不是OpenAI官方账单系统。"
       }
@@ -165,14 +166,16 @@ export const guideContent: Record<Locale, GuideContent> = {
       { label: "Codex 提示与执行循环", href: "https://developers.openai.com/codex/prompting" },
       { label: "Codex 最佳实践", href: "https://developers.openai.com/codex/learn/best-practices" },
       { label: "Codex 沙箱与审批", href: "https://developers.openai.com/codex/agent-approvals-security" },
-      { label: "OpenAI API 定价", href: "https://developers.openai.com/api/docs/pricing" }
+      { label: "OpenAI API 定价", href: "https://developers.openai.com/api/docs/pricing" },
+      { label: "Codex 变更日志", href: "https://developers.openai.com/codex/changelog" },
+      { label: "Codex 最新动态", href: "https://developers.openai.com/codex/whats-new" }
     ]
   },
   "en-US": {
     eyebrow: "A practical guide to AI agents",
     title: "Understand Codex: how it works and where usage comes from",
     subtitle: "You do not need model mathematics. A sound mental model makes Codex easier to direct, its results easier to judge, and every TokenLens number easier to understand.",
-    verified: "Based on official OpenAI Codex documentation and the local log fields TokenLens actually reads",
+    verified: "Based on official OpenAI Codex documentation, pricing, changelog entries, and the local log fields TokenLens actually reads",
     formulaLead: "Codex is more than a model",
     formulaParts: ["Model", "Instructions", "Context", "Tools", "Agent loop"],
     formulaResult: "Codex agent",
@@ -237,7 +240,7 @@ export const guideContent: Record<Locale, GuideContent> = {
       },
       {
         number: "08", title: "What can TokenLens tell you?", summary: "TokenLens explains usage present in local logs; it does not pretend inferred data is an official bill or full model request.",
-        bullets: ["A task row represents one user message and the resulting turn; call details show per-call usage confirmed by the log.", "TokenLens can calculate input, cache, output, reasoning, context pricing tiers, and Standard API-equivalent cost.", "Older logs without call snapshots can show only task totals.", "Logs alone cannot reconstruct every hidden context item or duplicate the Codex subscription-limit algorithm.", "The app reads local Codex logs only, and custom pricing stays on the device."],
+        bullets: ["A task row represents one user message and the resulting turn; call details show per-call usage confirmed by the log.", "TokenLens can calculate input, cache, output, reasoning, context pricing tiers, and Standard API-equivalent cost.", "Older logs without call snapshots can show only task totals.", "Logs alone cannot reconstruct every hidden context item or duplicate the Codex subscription-limit algorithm.", "Codex is now available through the separate Codex view in the ChatGPT desktop app, the CLI, and IDE extensions; TokenLens reads local Codex logs only, not Chat or Work history.", "Custom pricing stays on the device and is never uploaded."],
         note: "Use TokenLens as an analysis and learning tool, not as an official OpenAI billing system."
       }
     ],
@@ -247,7 +250,9 @@ export const guideContent: Record<Locale, GuideContent> = {
       { label: "Codex prompting and agent loop", href: "https://developers.openai.com/codex/prompting" },
       { label: "Codex best practices", href: "https://developers.openai.com/codex/learn/best-practices" },
       { label: "Codex sandboxing and approvals", href: "https://developers.openai.com/codex/agent-approvals-security" },
-      { label: "OpenAI API pricing", href: "https://developers.openai.com/api/docs/pricing" }
+      { label: "OpenAI API pricing", href: "https://developers.openai.com/api/docs/pricing" },
+      { label: "Codex changelog", href: "https://developers.openai.com/codex/changelog" },
+      { label: "Codex what's new", href: "https://developers.openai.com/codex/whats-new" }
     ]
   }
 };
