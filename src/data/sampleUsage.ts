@@ -1,8 +1,28 @@
-import type { UsageTask } from "./usageTypes";
+import type { CodexRateLimits, UsageTask } from "./usageTypes";
 
 function sampleTimestamp(minutesAgo: number) {
   return new Date(Date.now() - minutesAgo * 60_000).toISOString();
 }
+
+function sampleReset(minutesFromNow: number) {
+  return Math.floor((Date.now() + minutesFromNow * 60_000) / 1000);
+}
+
+export const sampleRateLimitGroups: CodexRateLimits[] = [
+  {
+    limitId: "codex",
+    planType: "pro",
+    capturedAt: sampleTimestamp(1),
+    primary: { usedPercent: 2, windowMinutes: 10_080, resetsAt: sampleReset(7 * 24 * 60) }
+  },
+  {
+    limitId: "codex_bengalfox",
+    limitName: "GPT-5.3-Codex-Spark",
+    capturedAt: sampleTimestamp(1),
+    primary: { usedPercent: 0, windowMinutes: 300, resetsAt: sampleReset(300) },
+    secondary: { usedPercent: 0, windowMinutes: 10_080, resetsAt: sampleReset(7 * 24 * 60) }
+  }
+];
 
 export const sampleUsageTasks: UsageTask[] = [
   {

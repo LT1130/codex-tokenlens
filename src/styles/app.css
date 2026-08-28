@@ -1869,7 +1869,7 @@ input[aria-invalid="true"] {
 .quota-card {
   display: grid;
   gap: 14px;
-  min-height: 178px;
+  min-height: 0;
 }
 
 .quota-card__header {
@@ -1931,6 +1931,66 @@ input[aria-invalid="true"] {
   font-size: 28px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+.quota-group__windows {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.quota-window {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+}
+
+.quota-window + .quota-window {
+  border-top: 1px solid var(--line-soft);
+}
+
+.quota-window__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quota-window__title strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.quota-window__title span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.quota-group__empty {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 18px 12px;
+  text-align: center;
+}
+
+.quota-group__status {
+  display: grid;
+  gap: 6px;
+}
+
+.quota-group__status span {
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .quota-progress {

@@ -49,7 +49,7 @@ Codex TokenLens 读取电脑上的 Codex JSONL 会话日志，并将其整理为
 - Input、output、cached input 与 reasoning output 明细
 - 逐次调用的模型、上下文档位、Token 和 Standard API 等价成本
 - 覆盖 GPT-5.6 Sol/Terra/Luna 的本地版本化价格目录与用户自定义模型价格
-- Codex primary/secondary 限额窗口
+- 同时展示通用与模型专属额度池及其 primary/secondary 限额窗口
 - 本地时间与 Excel UTF-8 兼容的 CSV 导出
 - JSONL 增量解析、文件监听与 15 秒自动刷新
 - 坏行、失败文件和进行中任务诊断

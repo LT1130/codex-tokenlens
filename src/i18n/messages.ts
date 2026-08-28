@@ -148,15 +148,23 @@ export type Messages = {
   quota: {
     primaryWindow: string;
     secondaryWindow: string;
+    generalGroup: string;
+    namedGroup: (name: string) => string;
+    otherGroup: string;
     windowTitle: (duration: string) => string;
     minutes: (value: number) => string;
     hours: (value: number) => string;
     days: (value: number) => string;
     weeks: (value: number) => string;
     remaining: string;
+    remainingValue: (value: string) => string;
     usedLabel: string;
     resetAt: string;
     sourceHint: string;
+    lastReported: (value: string) => string;
+    possiblyStale: string;
+    spendControlReached: string;
+    rateLimitReached: (type: string) => string;
     unavailable: string;
     used: (value: string) => string;
   };
@@ -363,15 +371,23 @@ export const messages: Record<Locale, Messages> = {
     quota: {
       primaryWindow: "主要额度窗口",
       secondaryWindow: "第二额度窗口",
-      windowTitle: (duration) => `${duration}额度`,
+      generalGroup: "通用使用限额",
+      namedGroup: (name) => `${name} 使用限额`,
+      otherGroup: "其他 Codex 使用限额",
+      windowTitle: (duration) => `${duration}使用额度`,
       minutes: (value) => `${value} 分钟`,
       hours: (value) => `${value} 小时`,
       days: (value) => `${value} 天`,
       weeks: (value) => `${value} 周`,
       remaining: "剩余",
+      remainingValue: (value) => `剩余 ${value}`,
       usedLabel: "已用",
       resetAt: "重置时间",
       sourceHint: "来自 Codex 本地日志",
+      lastReported: (value) => `Codex 日志最后报告于 ${value}`,
+      possiblyStale: "可能不是最新状态",
+      spendControlReached: "已触发支出控制",
+      rateLimitReached: (type) => `已触发使用限制：${type}`,
       unavailable: "未读取到额度数据",
       used: (value) => `已使用 ${value}`
     },
@@ -587,15 +603,23 @@ export const messages: Record<Locale, Messages> = {
     quota: {
       primaryWindow: "Primary quota window",
       secondaryWindow: "Additional quota window",
-      windowTitle: (duration) => `${duration} quota`,
+      generalGroup: "General usage limits",
+      namedGroup: (name) => `${name} usage limits`,
+      otherGroup: "Other Codex usage limits",
+      windowTitle: (duration) => `${duration} usage limit`,
       minutes: (value) => `${value} min`,
       hours: (value) => `${value}h`,
       days: (value) => `${value}d`,
       weeks: (value) => `${value}w`,
       remaining: "Remaining",
+      remainingValue: (value) => `${value} remaining`,
       usedLabel: "Used",
       resetAt: "Reset",
       sourceHint: "From Codex local logs",
+      lastReported: (value) => `Last reported by Codex logs at ${value}`,
+      possiblyStale: "may not be current",
+      spendControlReached: "Spend control reached",
+      rateLimitReached: (type) => `Usage limit reached: ${type}`,
       unavailable: "No quota data found",
       used: (value) => `Used ${value}`
     },

@@ -1,6 +1,6 @@
 [package]
 name = "codex-tokenlens"
-version = "0.1.4"
+version = "0.1.5"
 description = "A lightweight desktop app for visualizing local Codex token usage."
 authors = ["Codex TokenLens contributors"]
 edition = "2021"

@@ -59,6 +59,10 @@ export type CodexRateLimits = {
   limitId?: string;
   limitName?: string;
   planType?: string;
+  credits?: unknown;
+  individualLimit?: unknown;
+  spendControlReached?: boolean;
+  rateLimitReachedType?: string;
   sourcePath?: string;
   capturedAt?: string;
 };

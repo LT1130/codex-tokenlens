@@ -4,7 +4,6 @@ import {
   BookOpen,
   Boxes,
   Brain,
-  CalendarDays,
   ChevronDown,
   CheckSquare,
   CircleAlert,
@@ -153,7 +152,7 @@ function buildProjectSummary(tasks: UsageTask[]): ProjectSummary[] {
 function getUsageSnapshotSignature(
   tasks: UsageTask[],
   source: UsageSource,
-  rateLimits: CodexRateLimits | undefined,
+  rateLimitGroups: CodexRateLimits[],
   diagnostics: ScanDiagnostics | undefined,
   error: string | undefined
 ) {
@@ -186,18 +185,7 @@ function getUsageSnapshotSignature(
       ].join(":")
     )
     .join("|");
-  const rateLimitSignature = [
-    rateLimits?.primary?.usedPercent,
-    rateLimits?.primary?.windowMinutes,
-    rateLimits?.primary?.resetsAt,
-    rateLimits?.secondary?.usedPercent,
-    rateLimits?.secondary?.windowMinutes,
-    rateLimits?.secondary?.resetsAt,
-    rateLimits?.limitId,
-    rateLimits?.limitName,
-    rateLimits?.planType,
-    rateLimits?.sourcePath
-  ].join(":");
+  const rateLimitSignature = JSON.stringify(rateLimitGroups);
   const diagnosticSignature = diagnostics
     ? `${diagnostics.scannedFiles}:${diagnostics.failedFiles}:${diagnostics.skippedLines}:${diagnostics.watcherActive}:${JSON.stringify(diagnostics.issues)}`
     : "";
@@ -211,7 +199,7 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>("zh-CN");
   const [tasks, setTasks] = useState<UsageTask[]>([]);
   const [usageSource, setUsageSource] = useState<UsageSource>("loading");
-  const [rateLimits, setRateLimits] = useState<CodexRateLimits | undefined>();
+  const [rateLimitGroups, setRateLimitGroups] = useState<CodexRateLimits[]>([]);
   const [diagnostics, setDiagnostics] = useState<ScanDiagnostics | undefined>();
   const [loadError, setLoadError] = useState<string | undefined>();
   const [activeSection, setActiveSection] = useState("overview");
@@ -260,12 +248,12 @@ export default function App() {
     refreshButtonRef.current?.classList.add("icon-button--refreshing");
     try {
       const result = await loadUsageTasks();
-      const nextSignature = getUsageSnapshotSignature(result.tasks, result.source, result.rateLimits, result.diagnostics, result.error);
+      const nextSignature = getUsageSnapshotSignature(result.tasks, result.source, result.rateLimitGroups, result.diagnostics, result.error);
       if (usageSnapshotSignature.current === nextSignature) return;
       usageSnapshotSignature.current = nextSignature;
       setTasks(result.tasks);
       setUsageSource(result.source);
-      setRateLimits(result.rateLimits);
+      setRateLimitGroups(result.rateLimitGroups);
       setDiagnostics(result.diagnostics);
       setLoadError(result.error);
     } finally {
@@ -669,23 +657,16 @@ export default function App() {
             />
           </div>
           <aside className="quota-stack">
-            <QuotaPanel
-              fallbackTitle={t.quota.primaryWindow}
-              icon={Activity}
-              rateLimit={rateLimits?.primary}
-              locale={locale}
-              messages={t.quota}
-              tone="green"
-            />
-            {rateLimits?.secondary && (
-              <QuotaPanel
-                fallbackTitle={t.quota.secondaryWindow}
-                icon={CalendarDays}
-                rateLimit={rateLimits.secondary}
+            {rateLimitGroups.length > 0 ? rateLimitGroups.map((group, index) => (
+              <QuotaGroup
+                key={group.limitId ?? group.limitName ?? `quota-${index}`}
+                group={group}
                 locale={locale}
                 messages={t.quota}
-                tone="blue"
+                tone={index % 2 === 0 ? "green" : "blue"}
               />
+            )) : (
+              <QuotaGroup locale={locale} messages={t.quota} tone="green" />
             )}
           </aside>
         </section>
@@ -838,10 +819,8 @@ function ApiCostPanel({ catalog, estimate, formatter, messages, onOpenPricing }:
   );
 }
 
-type QuotaPanelProps = {
-  fallbackTitle: string;
-  icon: LucideIcon;
-  rateLimit?: CodexRateLimitWindow;
+type QuotaGroupProps = {
+  group?: CodexRateLimits;
   locale: Locale;
   messages: Messages["quota"];
   tone: "green" | "blue";
@@ -876,39 +855,81 @@ function DataStatePanel({ description, detail, icon: Icon, onPrimary, onSecondar
   );
 }
 
-function QuotaPanel({ fallbackTitle, icon: Icon, rateLimit, locale, messages, tone }: QuotaPanelProps) {
-  const usedPercent = rateLimit ? Math.min(Math.max(rateLimit.usedPercent, 0), 100) : 0;
-  const remainingPercent = rateLimit ? Math.max(100 - usedPercent, 0) : 0;
-  const resetLabel = rateLimit ? formatResetTime(rateLimit.resetsAt, rateLimit.windowMinutes, locale) : messages.unavailable;
-  const title = rateLimit ? messages.windowTitle(formatQuotaWindow(rateLimit.windowMinutes, messages)) : fallbackTitle;
+function QuotaGroup({ group, locale, messages, tone }: QuotaGroupProps) {
+  const windows = group
+    ? [group.primary, group.secondary].filter((window): window is CodexRateLimitWindow => Boolean(window))
+    : [];
+  const title = group?.limitName
+    ? messages.namedGroup(group.limitName)
+    : group?.limitId === "codex"
+      ? messages.generalGroup
+      : messages.otherGroup;
+  const capturedAt = group?.capturedAt ? new Date(group.capturedAt) : undefined;
+  const capturedAtIsValid = capturedAt && !Number.isNaN(capturedAt.getTime());
+  const isPossiblyStale = capturedAtIsValid && Date.now() - capturedAt.getTime() > 24 * 60 * 60 * 1000;
+  const sourceLabel = capturedAtIsValid
+    ? messages.lastReported(formatQuotaCapturedAt(capturedAt, locale))
+    : group
+      ? messages.sourceHint
+      : messages.unavailable;
 
   return (
-    <section className={`panel quota-card quota-card--${tone}`}>
+    <section className={`panel quota-card quota-group quota-card--${tone}`}>
       <div className="quota-card__header">
         <div className="quota-card__icon">
-          <Icon size={18} />
+          <Activity size={18} />
         </div>
         <div>
           <h2>{title}</h2>
-          <p>{rateLimit ? messages.sourceHint : messages.unavailable}</p>
+          <p>{sourceLabel}{isPossiblyStale ? ` · ${messages.possiblyStale}` : ""}</p>
         </div>
       </div>
-      <div className="quota-card__remaining">
-        <span>{messages.remaining}</span>
-        <strong>{Math.round(remainingPercent)}%</strong>
+      {windows.length > 0 ? (
+        <div className="quota-group__windows">
+          {windows.map((window) => (
+            <QuotaWindow
+              key={`${window.windowMinutes}-${window.resetsAt}`}
+              rateLimit={window}
+              locale={locale}
+              messages={messages}
+            />
+          ))}
+        </div>
+      ) : <p className="quota-group__empty">{messages.unavailable}</p>}
+      {(group?.spendControlReached || group?.rateLimitReachedType) && (
+        <div className="quota-group__status" role="status">
+          {group.spendControlReached && <span>{messages.spendControlReached}</span>}
+          {group.rateLimitReachedType && <span>{messages.rateLimitReached(group.rateLimitReachedType)}</span>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function QuotaWindow({ rateLimit, locale, messages }: { rateLimit: CodexRateLimitWindow; locale: Locale; messages: Messages["quota"] }) {
+  const usedPercent = Math.min(Math.max(rateLimit.usedPercent, 0), 100);
+  const remainingPercent = Math.max(100 - usedPercent, 0);
+  const resetLabel = formatResetTime(rateLimit.resetsAt, rateLimit.windowMinutes, locale);
+  const title = messages.windowTitle(formatQuotaWindow(rateLimit.windowMinutes, messages));
+
+  return (
+    <div className="quota-window">
+      <div className="quota-window__title">
+        <strong>{title}</strong>
+        <span>{messages.remainingValue(`${Math.round(remainingPercent)}%`)}</span>
       </div>
       <div className="quota-progress" aria-label={messages.used(`${Math.round(usedPercent)}%`)}>
         <span style={{ width: `${usedPercent}%` }} />
       </div>
       <div className="quota-card__meta">
         <span>{messages.usedLabel}</span>
-        <strong>{rateLimit ? `${Math.round(usedPercent)}%` : "--"}</strong>
+        <strong>{Math.round(usedPercent)}%</strong>
       </div>
       <div className="quota-card__meta">
         <span>{messages.resetAt}</span>
         <strong>{resetLabel}</strong>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -932,4 +953,13 @@ function formatResetTime(value: number, windowMinutes: number, locale: Locale) {
     locale,
     isShortWindow ? { hour: "2-digit", minute: "2-digit" } : { month: "short", day: "numeric" }
   ).format(date);
+}
+
+function formatQuotaCapturedAt(value: Date, locale: Locale) {
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(value);
 }

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { sampleUsageTasks } from "./sampleUsage";
+import { sampleRateLimitGroups, sampleUsageTasks } from "./sampleUsage";
 import type { CodexRateLimits, ScanDiagnostics, UsageTask } from "./usageTypes";
 
 export type UsageSource = "loading" | "codex" | "sample" | "empty" | "error";
@@ -12,47 +12,47 @@ const SCAN_BUSY_MESSAGE = "A Codex log scan is already in progress";
 export type UsageLoadResult = {
   source: UsageSource;
   tasks: UsageTask[];
-  rateLimits?: CodexRateLimits;
+  rateLimitGroups: CodexRateLimits[];
   diagnostics?: ScanDiagnostics;
   error?: string;
 };
 
 type CodexUsageSnapshot = {
   tasks: UsageTask[];
-  rateLimits?: CodexRateLimits;
+  rateLimitGroups: CodexRateLimits[];
   diagnostics: ScanDiagnostics;
 };
 
 export async function loadUsageTasks(): Promise<UsageLoadResult> {
   if (!("__TAURI_INTERNALS__" in window)) {
-    return { source: "sample", tasks: sampleUsageTasks };
+    return { source: "sample", tasks: sampleUsageTasks, rateLimitGroups: sampleRateLimitGroups };
   }
 
   try {
     const snapshot = await invokeSnapshotWithBusyRetry();
     if (snapshot.tasks.length > 0) {
-      return { source: "codex", tasks: snapshot.tasks, rateLimits: snapshot.rateLimits, diagnostics: snapshot.diagnostics };
+      return { source: "codex", tasks: snapshot.tasks, rateLimitGroups: snapshot.rateLimitGroups, diagnostics: snapshot.diagnostics };
     }
     return {
       source: "empty",
       tasks: [],
-      rateLimits: snapshot.rateLimits,
+      rateLimitGroups: snapshot.rateLimitGroups,
       diagnostics: snapshot.diagnostics
     };
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
-      return { source: "error", tasks: [], error: error.message };
+      return { source: "error", tasks: [], rateLimitGroups: [], error: error.message };
     }
     try {
       const tasks = await invokeWithTimeout<UsageTask[]>("scan_codex_usage", 5_000);
       if (tasks.length > 0) {
-        return { source: "codex", tasks };
+        return { source: "codex", tasks, rateLimitGroups: [] };
       }
-      return { source: "empty", tasks: [] };
+      return { source: "empty", tasks: [], rateLimitGroups: [] };
     } catch {
       // Keep the original error below; the legacy command is only a compatibility fallback.
     }
-    return { source: "error", tasks: [], error: error instanceof Error ? error.message : String(error) };
+    return { source: "error", tasks: [], rateLimitGroups: [], error: error instanceof Error ? error.message : String(error) };
   }
 }
 

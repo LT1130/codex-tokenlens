@@ -96,9 +96,14 @@ describe("API equivalent cost", () => {
     }));
 
     expect(sol?.calls?.[0].tier).toBe("long");
-    expect(sol?.total).toBeCloseTo(2 + 0.1 + 0.045);
-    expect(luna?.total).toBeCloseTo(0.009 + 0.0001 + 0.006);
+    expect(sol?.total).toBeCloseTo(1.6 + 0.08 + 0.03);
+    expect(luna?.total).toBeCloseTo(0.0018 + 0.00002 + 0.0012);
     expect(codex?.total).toBeCloseTo(1.575 + 0.0175 + 0.14);
+  });
+
+  it("prices the gpt-5.6 alias as Sol without guessing unknown family variants", () => {
+    expect(estimateTaskApiCost(task({ model: "gpt-5.6", input: 1_000_000, cache: 0, output: 0 }))?.total).toBeCloseTo(4);
+    expect(estimateTaskApiCost(task({ model: "gpt-5.6-future", input: 1_000_000, cache: 0, output: 0 }))).toBeUndefined();
   });
 
   it("uses the longest model alias before suffix matching", () => {
@@ -153,7 +158,7 @@ describe("API equivalent cost", () => {
     const merged = mergePricingCatalog(saved);
 
     expect(merged.customized).toBe(true);
-    expect(merged.version).toBe("2026-07-21-custom");
+    expect(merged.version).toBe("2026-08-28-custom");
     expect(merged.models["gpt-5.6-sol"]).toBeDefined();
     expect(merged.models["local-model"]).toBeDefined();
   });

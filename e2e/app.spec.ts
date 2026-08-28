@@ -4,6 +4,11 @@ test("dashboard, call details, and pricing settings remain usable", async ({ pag
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Codex Token 用量" })).toBeVisible();
   await expect(page.getByText("输入与输出构成")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "通用使用限额" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "GPT-5.3-Codex-Spark 使用限额" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "其他 Codex 使用限额" })).toHaveCount(0);
+  await expect(page.getByText("5 小时使用额度")).toBeVisible();
+  await expect(page.getByText("1 周使用额度")).toHaveCount(2);
   await page.getByRole("button", { name: "最近 7 天" }).click();
   await page.getByRole("button", { name: "最近 30 天" }).click();
 
