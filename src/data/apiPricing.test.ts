@@ -101,6 +101,30 @@ describe("API equivalent cost", () => {
     expect(codex?.total).toBeCloseTo(1.575 + 0.0175 + 0.14);
   });
 
+  it("prices GPT-6 Astra at its standard short and long-context rates", () => {
+    const short = estimateTaskApiCost(task({
+      model: "gpt-6-astra",
+      input: 100_000,
+      cache: 40_000,
+      output: 2_000,
+      reasoning: 0,
+      usageSegments: [{ input: 100_000, cache: 40_000, output: 2_000, reasoning: 0 }]
+    }));
+    const long = estimateTaskApiCost(task({
+      model: "gpt-6-astra-2026-09-03",
+      input: 300_000,
+      cache: 100_000,
+      output: 4_000,
+      reasoning: 0,
+      usageSegments: [{ input: 300_000, cache: 100_000, output: 4_000, reasoning: 0 }]
+    }));
+
+    expect(short?.calls?.[0].tier).toBe("short");
+    expect(short?.total).toBeCloseTo(0.6 + 0.04 + 0.1);
+    expect(long?.calls?.[0].tier).toBe("long");
+    expect(long?.total).toBeCloseTo(4 + 0.2 + 0.3);
+  });
+
   it("prices the gpt-5.6 alias as Sol without guessing unknown family variants", () => {
     expect(estimateTaskApiCost(task({ model: "gpt-5.6", input: 1_000_000, cache: 0, output: 0 }))?.total).toBeCloseTo(4);
     expect(estimateTaskApiCost(task({ model: "gpt-5.6-future", input: 1_000_000, cache: 0, output: 0 }))).toBeUndefined();
@@ -158,7 +182,8 @@ describe("API equivalent cost", () => {
     const merged = mergePricingCatalog(saved);
 
     expect(merged.customized).toBe(true);
-    expect(merged.version).toBe("2026-08-28-custom");
+    expect(merged.version).toBe("2026-09-11-custom");
+    expect(merged.models["gpt-6-astra"]).toBeDefined();
     expect(merged.models["gpt-5.6-sol"]).toBeDefined();
     expect(merged.models["local-model"]).toBeDefined();
   });

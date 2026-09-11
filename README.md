@@ -48,7 +48,7 @@ Codex TokenLens reads Codex JSONL session logs on your computer and turns them i
 - Search, project filtering, sortable task details, expansion, and pagination
 - Input, output, cached input, and reasoning output breakdowns
 - Per-call model, context tier, token usage, and Standard API equivalent cost
-- Local, versioned pricing catalog with GPT-5.6 Sol/Terra/Luna coverage and user-defined model pricing
+- Local, versioned pricing catalog with GPT-6 Astra and GPT-5.6 Sol/Terra/Luna coverage, plus user-defined model pricing
 - Multiple Codex rate-limit pools, including general and model-specific primary/secondary windows
 - CSV export with local timestamps and Excel-compatible UTF-8
 - Incremental JSONL parsing, filesystem watching, and 15-second refreshes
