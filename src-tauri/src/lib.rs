@@ -727,6 +727,23 @@ fn parse_session_file_from(
             let context_window = info.get("model_context_window").and_then(Value::as_u64);
 
             if let Some(total_usage) = total_usage {
+                // A long-lived Codex thread can restart its cumulative token counter after the
+                // thread is resumed or compacted. Only treat a smaller snapshot as a new counter
+                // epoch when it is the first useful snapshot of a new task; smaller snapshots
+                // later in the same task are still considered stale/out-of-order events.
+                if pending_turn.is_some()
+                    && current_usage_segments.is_empty()
+                    && latest_turn_usage
+                        .as_ref()
+                        .is_some_and(|current| usage_counter_restarted(current, &total_usage))
+                {
+                    let reset_baseline = last_usage
+                        .as_ref()
+                        .map(|last| subtract_usage(&total_usage, Some(last)))
+                        .unwrap_or_default();
+                    turn_start_usage = Some(reset_baseline.clone());
+                    latest_turn_usage = Some(reset_baseline);
+                }
                 // Codex reports a session/thread cumulative total. Token-count events can be
                 // duplicated or arrive with an older snapshot, so retain a component-wise high
                 // water mark instead of letting a stale event move the counter backwards.
@@ -803,6 +820,11 @@ fn parse_session_file_from(
             ));
         }
     }
+
+    // Codex writes separate safety-review sessions for privileged action approvals. Their prompt
+    // contains the agent history and is not a user-created task, but their rate-limit snapshots
+    // are still useful and have already been retained above.
+    tasks.retain(|task| !is_internal_codex_task_model(&task.model));
 
     Ok(ParsedSession {
         source_path: path.display().to_string(),
@@ -888,6 +910,14 @@ fn subtract_usage(total: &TokenUsage, baseline: Option<&TokenUsage>) -> TokenUsa
             .reasoning_output_tokens
             .saturating_sub(baseline.reasoning_output_tokens),
     }
+}
+
+fn usage_counter_restarted(current: &TokenUsage, next: &TokenUsage) -> bool {
+    next.input_tokens < current.input_tokens && next.output_tokens <= current.output_tokens
+}
+
+fn is_internal_codex_task_model(model: &str) -> bool {
+    model.eq_ignore_ascii_case("codex-auto-review")
 }
 
 fn max_usage(current: Option<&TokenUsage>, next: &TokenUsage) -> TokenUsage {
@@ -1697,6 +1727,56 @@ not valid json
         fs::remove_file(&path).ok();
         assert_eq!((parsed.tasks[0].input, parsed.tasks[0].output), (240, 30));
         assert_eq!(parsed.tasks[0].usage_segments.len(), 2);
+    }
+
+    #[test]
+    fn new_turn_accepts_a_restarted_cumulative_counter() {
+        let path = temporary_jsonl(
+            r#"{"timestamp":"2026-06-18T08:00:00Z","payload":{"type":"task_started","turn_id":"turn-1"}}
+{"timestamp":"2026-06-18T08:00:01Z","payload":{"model":"gpt-5.6-sol","role":"user","content":[{"type":"input_text","text":"First counter epoch"}]}}
+{"timestamp":"2026-06-18T08:00:10Z","payload":{"info":{"total_token_usage":{"input_tokens":1000,"cached_input_tokens":800,"output_tokens":100},"last_token_usage":{"input_tokens":1000,"cached_input_tokens":800,"output_tokens":100}}}}
+{"timestamp":"2026-06-18T08:00:11Z","payload":{"type":"task_complete","turn_id":"turn-1"}}
+{"timestamp":"2026-06-19T08:00:00Z","payload":{"type":"task_started","turn_id":"turn-2"}}
+{"timestamp":"2026-06-19T08:00:01Z","payload":{"model":"gpt-5.6-sol","role":"user","content":[{"type":"input_text","text":"Counter restarted"}]}}
+{"timestamp":"2026-06-19T08:00:10Z","payload":{"info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":60,"output_tokens":10},"last_token_usage":{"input_tokens":100,"cached_input_tokens":60,"output_tokens":10}}}}
+{"timestamp":"2026-06-19T08:00:20Z","payload":{"info":{"total_token_usage":{"input_tokens":250,"cached_input_tokens":170,"output_tokens":30},"last_token_usage":{"input_tokens":150,"cached_input_tokens":110,"output_tokens":20}}}}
+{"timestamp":"2026-06-19T08:00:21Z","payload":{"type":"task_complete","turn_id":"turn-2"}}
+"#,
+        );
+
+        let parsed = parse_session_file(&path).expect("restarted counter should parse");
+        fs::remove_file(&path).ok();
+
+        assert_eq!(parsed.tasks.len(), 2);
+        assert_eq!((parsed.tasks[0].input, parsed.tasks[0].output), (1000, 100));
+        assert_eq!((parsed.tasks[1].input, parsed.tasks[1].output), (250, 30));
+        assert_eq!(parsed.tasks[1].cache, 170);
+        assert_eq!(parsed.tasks[1].usage_segments.len(), 2);
+    }
+
+    #[test]
+    fn internal_auto_review_tasks_are_hidden_but_their_rate_limits_are_kept() {
+        let path = temporary_jsonl(
+            r#"{"timestamp":"2026-09-11T13:37:08Z","payload":{"type":"task_started","turn_id":"review-1"}}
+{"timestamp":"2026-09-11T13:37:09Z","payload":{"model":"codex-auto-review","cwd":"/tmp/demo"}}
+{"timestamp":"2026-09-11T13:37:10Z","payload":{"role":"user","content":[{"type":"input_text","text":"The following is the Codex agent history whose request action you are assessing."}]}}
+{"timestamp":"2026-09-11T13:37:14Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":200000,"cached_input_tokens":180000,"output_tokens":100},"last_token_usage":{"input_tokens":200000,"cached_input_tokens":180000,"output_tokens":100}},"rate_limits":{"limit_id":"codex","primary":{"used_percent":40.0,"window_minutes":10080,"resets_at":1790000000}}}}
+{"timestamp":"2026-09-11T13:37:15Z","payload":{"type":"task_complete","turn_id":"review-1"}}
+"#,
+        );
+
+        let parsed = parse_session_file(&path).expect("auto-review session should parse");
+        fs::remove_file(&path).ok();
+
+        assert!(parsed.tasks.is_empty());
+        assert_eq!(
+            parsed
+                .rate_limit_groups
+                .get("codex")
+                .and_then(|group| group.value.primary.as_ref())
+                .map(|window| window.used_percent),
+            Some(40.0)
+        );
     }
 
     #[test]

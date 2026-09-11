@@ -71,7 +71,7 @@ All parsing and analysis happens locally. The app does not upload session logs o
 
 Total tokens are always calculated as `input + output`. Cached input is part of input, and reasoning output is part of output, so neither is counted twice.
 
-Codex reports cumulative usage within a thread. TokenLens calculates each task from the thread high-water mark minus the baseline before that task, avoiding both missed tool-loop calls and double counting across tasks.
+Codex reports cumulative usage within a thread. TokenLens calculates each task from the cumulative high-water mark within the current counter epoch minus the baseline before that task. It detects counter restarts when a long-lived thread resumes, while still ignoring duplicated or stale snapshots, avoiding both missed tool-loop calls and double counting across tasks. Internal `codex-auto-review` safety checks are excluded from user task analytics while their current rate-limit snapshots remain available.
 
 Standard API equivalent cost is estimated as:
 

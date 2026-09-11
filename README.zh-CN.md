@@ -71,7 +71,7 @@ Codex TokenLens 读取电脑上的 Codex JSONL 会话日志，并将其整理为
 
 总 Token 始终按 `input + output` 计算。Cached input 属于 input，reasoning output 属于 output，两者都不会重复计入总量。
 
-Codex 在线程内报告累计用量。TokenLens 使用线程累计高水位减去任务开始前基线计算单任务用量，既避免漏掉工具循环中的模型调用，也避免跨任务重复累计。
+Codex 在线程内报告累计用量。TokenLens 使用当前计数周期内的累计高水位减去任务开始前基线计算单任务用量；长期线程续接时会识别累计计数重新开始，同时继续忽略重复或过期快照，既避免漏掉工具循环中的模型调用，也避免跨任务重复累计。内部 `codex-auto-review` 安全审核不会进入用户任务统计，但其中有效的最新额度快照仍会保留。
 
 Standard API 等价成本按以下方式估算：
 
