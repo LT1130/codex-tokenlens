@@ -14,13 +14,26 @@ test("dashboard, call details, and pricing settings remain usable", async ({ pag
 
   const firstTask = page.locator(".task-row").first();
   await expect(firstTask).toBeVisible();
+  await expect(firstTask).toContainText("gpt-6-sol");
+  await expect(firstTask).toContainText("$0.09");
   await firstTask.click();
   await expect(page.getByText("模型调用明细")).toBeVisible();
   await expect(page.getByText("日志记录到 3 次调用")).toBeVisible();
 
   await page.locator(".pricing-trigger").click();
-  await expect(page.getByRole("dialog", { name: "API 等价价格预览与自定义" })).toBeVisible();
+  const pricingDialog = page.getByRole("dialog", { name: "API 等价价格预览与自定义" });
+  await expect(pricingDialog).toBeVisible();
   await expect(page.getByRole("button", { name: "查看官网价格" })).toBeVisible();
+  for (const [model, rates] of [
+    ["gpt-6-sol", ["2", "0.2", "10", "272000", "4", "0.4", "15"]],
+    ["gpt-6-luna", ["0.1", "0.01", "0.5", "272000", "0.2", "0.02", "0.75"]]
+  ] as const) {
+    const row = pricingDialog.getByRole("row").filter({ has: page.getByText(model, { exact: true }) });
+    await expect(row).toBeVisible();
+    for (const [index, value] of rates.entries()) {
+      await expect(row.getByRole("spinbutton").nth(index)).toHaveValue(value);
+    }
+  }
   await page.getByRole("button", { name: "关闭价格设置" }).click();
 });
 

@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-11",
+  "version": "2026-09-25",
   "currency": "USD",
   "unit": 1000000,
   "serviceTier": "Standard",
@@ -10,6 +10,18 @@
       "contextThreshold": 272000,
       "short": { "input": 10, "cachedInput": 1, "output": 50 },
       "long": { "input": 20, "cachedInput": 2, "output": 75 }
+    },
+    "gpt-6-sol": {
+      "aliases": ["gpt-6-sol"],
+      "contextThreshold": 272000,
+      "short": { "input": 2, "cachedInput": 0.2, "output": 10 },
+      "long": { "input": 4, "cachedInput": 0.4, "output": 15 }
+    },
+    "gpt-6-luna": {
+      "aliases": ["gpt-6-luna"],
+      "contextThreshold": 272000,
+      "short": { "input": 0.1, "cachedInput": 0.01, "output": 0.5 },
+      "long": { "input": 0.2, "cachedInput": 0.02, "output": 0.75 }
     },
     "gpt-5.6-sol": {
       "aliases": ["gpt-5.6-sol", "gpt-5.6"],

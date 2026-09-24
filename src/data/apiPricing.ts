@@ -69,7 +69,7 @@ function findModelPrice(model: string, catalog: PricingCatalog): ModelPrice | un
 }
 
 function segmentCost(segment: UsageSegment, price: ModelPrice, useContextTier: boolean, unit: number) {
-  const useLongPricing = Boolean(useContextTier && price.long && price.contextThreshold && segment.input >= price.contextThreshold);
+  const useLongPricing = Boolean(useContextTier && price.long && price.contextThreshold && segment.input > price.contextThreshold);
   const rates = useLongPricing ? price.long! : price.short;
   const cached = Math.min(segment.cache, segment.input);
   const uncached = Math.max(segment.input - cached, 0);

@@ -31,15 +31,15 @@ export const sampleUsageTasks: UsageTask[] = [
     project: "codex-tokenlens",
     startedAt: sampleTimestamp(38),
     durationMinutes: 26,
-    model: "gpt-5.6-sol",
+    model: "gpt-6-sol",
     input: 18420,
     output: 6910,
     cache: 11280,
     reasoning: 4380,
     usageSegments: [
-      { timestamp: sampleTimestamp(32), model: "gpt-5.6-sol", contextWindow: 272000, input: 5000, output: 1800, cache: 3000, reasoning: 900 },
-      { timestamp: sampleTimestamp(22), model: "gpt-5.6-sol", contextWindow: 272000, input: 6200, output: 2300, cache: 4000, reasoning: 1400 },
-      { timestamp: sampleTimestamp(12), model: "gpt-5.6-sol", contextWindow: 272000, input: 7220, output: 2810, cache: 4280, reasoning: 2080 }
+      { timestamp: sampleTimestamp(32), model: "gpt-6-sol", contextWindow: 272000, input: 5000, output: 1800, cache: 3000, reasoning: 900 },
+      { timestamp: sampleTimestamp(22), model: "gpt-6-sol", contextWindow: 272000, input: 6200, output: 2300, cache: 4000, reasoning: 1400 },
+      { timestamp: sampleTimestamp(12), model: "gpt-6-sol", contextWindow: 272000, input: 7220, output: 2810, cache: 4280, reasoning: 2080 }
     ]
   },
   {
@@ -72,7 +72,7 @@ export const sampleUsageTasks: UsageTask[] = [
     project: "codex-tokenlens",
     startedAt: sampleTimestamp(305),
     durationMinutes: 18,
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     input: 8760,
     output: 3410,
     cache: 6440,
