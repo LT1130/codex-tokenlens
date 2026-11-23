@@ -64,7 +64,7 @@ function findModelPrice(model: string, catalog: PricingCatalog): ModelPrice | un
     .sort((left, right) => right.alias.length - left.alias.length);
   return prices.find(({ alias }) =>
     normalized === alias ||
-    normalized.startsWith(`${alias}-20`)
+    (normalized.startsWith(`${alias}-`) && /^20\d{2}-\d{2}-\d{2}$/.test(normalized.slice(alias.length + 1)))
   )?.price;
 }
 

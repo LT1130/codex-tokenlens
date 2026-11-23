@@ -126,6 +126,37 @@ describe("API equivalent cost", () => {
     expect(long?.total).toBeCloseTo(4 + 0.2 + 0.3);
   });
 
+  it.each([
+    { model: "gpt-6.2-astra", shortTotal: 0.576, longTotal: 3.52 },
+    { model: "gpt-6.2-sol", shortTotal: 0.144, longTotal: 0.88 },
+    { model: "gpt-6.1-sol", shortTotal: 0.144, longTotal: 0.88 },
+    { model: "gpt-6.1-terra", shortTotal: 0.072, longTotal: 0.44 }
+  ])("prices $model at current Standard short and long-context rates", ({ model, shortTotal, longTotal }) => {
+    const short = estimateTaskApiCost(task({
+      model,
+      input: 100_000,
+      cache: 40_000,
+      output: 2_000,
+      reasoning: 1_000,
+      usageSegments: [{ input: 100_000, cache: 40_000, output: 2_000, reasoning: 1_000 }]
+    }));
+    const long = estimateTaskApiCost(task({
+      model: `${model}-2026-11-17`,
+      input: 300_000,
+      cache: 100_000,
+      output: 4_000,
+      reasoning: 2_000,
+      usageSegments: [{ input: 300_000, cache: 100_000, output: 4_000, reasoning: 2_000 }]
+    }));
+
+    expect(short?.calls?.[0].tier).toBe("short");
+    expect(short?.total).toBeCloseTo(shortTotal, 8);
+    expect(long?.calls?.[0].tier).toBe("long");
+    expect(long?.total).toBeCloseTo(longTotal, 8);
+    expect(estimateTaskApiCost(task({ model: `${model}-future` }))).toBeUndefined();
+    expect(estimateTaskApiCost(task({ model: `${model}-2026-11-17-future` }))).toBeUndefined();
+  });
+
   it("prices the gpt-5.6 alias as Sol without guessing unknown family variants", () => {
     expect(estimateTaskApiCost(task({ model: "gpt-5.6", input: 1_000_000, cache: 0, output: 0 }))?.total).toBeCloseTo(4);
     expect(estimateTaskApiCost(task({ model: "gpt-5.6-future", input: 1_000_000, cache: 0, output: 0 }))).toBeUndefined();
@@ -268,6 +299,10 @@ describe("API equivalent cost", () => {
     expect(merged.customized).toBe(true);
     expect(merged.version).toBe(`${API_PRICING_CATALOG.version}-custom`);
     expect(merged.models["gpt-6-astra"]).toBeDefined();
+    expect(merged.models["gpt-6.2-astra"]).toBeDefined();
+    expect(merged.models["gpt-6.2-sol"]).toBeDefined();
+    expect(merged.models["gpt-6.1-sol"]).toBeDefined();
+    expect(merged.models["gpt-6.1-terra"]).toBeDefined();
     expect(merged.models["gpt-5.6-sol"]).toBeDefined();
     expect(merged.models["local-model"]).toBeDefined();
   });

@@ -48,7 +48,7 @@ Codex TokenLens reads Codex JSONL session logs on your computer and turns them i
 - Search, project filtering, sortable task details, expansion, and pagination
 - Input, output, cached input, and reasoning output breakdowns
 - Per-call model, context tier, token usage, and Standard API equivalent cost
-- Local, versioned pricing catalog with GPT-6 Astra/Sol/Luna and GPT-5.6 Sol/Terra/Luna coverage, plus user-defined model pricing
+- Local, versioned pricing catalog with GPT-6.2 Astra/Sol, GPT-6.1 Sol/Terra, GPT-6 Astra/Sol/Luna, and GPT-5.6 Sol/Terra/Luna coverage, plus user-defined model pricing
 - Multiple Codex rate-limit pools, including general and model-specific primary/secondary windows
 - CSV export with local timestamps and Excel-compatible UTF-8
 - Incremental JSONL parsing, filesystem watching, and 15-second refreshes
@@ -71,7 +71,7 @@ All parsing and analysis happens locally. The app does not upload session logs o
 
 Total tokens are always calculated as `input + output`. Cached input is part of input, and reasoning output is part of output, so neither is counted twice.
 
-Codex reports cumulative usage within a thread. TokenLens calculates each task from the cumulative high-water mark within the current counter epoch minus the baseline before that task. It detects counter restarts when a long-lived thread resumes, while still ignoring duplicated or stale snapshots, avoiding both missed tool-loop calls and double counting across tasks. Internal `codex-auto-review` safety checks are excluded from user task analytics while their current rate-limit snapshots remain available.
+Codex reports cumulative usage within a thread. TokenLens reads both `token_count` events and `token_usage_record` entries, calculates each task from the cumulative high-water mark within the current counter epoch minus the baseline before that task, and ignores matching duplicate records. It detects counter restarts when a long-lived thread resumes, avoiding both missed tool-loop calls and double counting across tasks. Internal `codex-auto-review` safety checks are excluded from user task analytics while their current rate-limit snapshots remain available.
 
 Standard API equivalent cost is estimated as:
 

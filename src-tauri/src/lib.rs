@@ -721,10 +721,25 @@ fn parse_session_file_from(
                 model: model.clone().unwrap_or_else(|| "unknown".to_string()),
             });
         }
-        if let Some(info) = payload.get("info") {
-            let total_usage = info.get("total_token_usage").and_then(read_token_usage);
-            let last_usage = info.get("last_token_usage").and_then(read_token_usage);
-            let context_window = info.get("model_context_window").and_then(Value::as_u64);
+        let usage_info = payload.get("info");
+        let is_usage_record =
+            value.get("type").and_then(Value::as_str) == Some("token_usage_record");
+        if usage_info.is_some() || is_usage_record {
+            let total_usage = if is_usage_record {
+                payload.get("thread_token_usage")
+            } else {
+                usage_info.and_then(|info| info.get("total_token_usage"))
+            }
+            .and_then(read_token_usage);
+            let last_usage = if is_usage_record {
+                payload.get("usage")
+            } else {
+                usage_info.and_then(|info| info.get("last_token_usage"))
+            }
+            .and_then(read_token_usage);
+            let context_window = usage_info
+                .and_then(|info| info.get("model_context_window"))
+                .and_then(Value::as_u64);
 
             if let Some(total_usage) = total_usage {
                 // A long-lived Codex thread can restart its cumulative token counter after the
@@ -759,6 +774,12 @@ fn parse_session_file_from(
                             .unwrap_or_default(),
                     );
                 }
+                let duplicate_snapshot = latest_turn_usage.as_ref().is_some_and(|current| {
+                    current.input_tokens == total_usage.input_tokens
+                        && current.cached_input_tokens == total_usage.cached_input_tokens
+                        && current.output_tokens == total_usage.output_tokens
+                        && current.reasoning_output_tokens == total_usage.reasoning_output_tokens
+                });
                 let next_usage = max_usage(latest_turn_usage.as_ref(), &total_usage);
                 if pending_turn.is_some() {
                     let segment = subtract_usage(
@@ -772,6 +793,15 @@ fn parse_session_file_from(
                         model.as_deref(),
                         context_window,
                     );
+                    // Modern rollouts write a token_usage_record before the matching token_count.
+                    // The latter can add the context window without creating another call.
+                    if duplicate_snapshot && context_window.is_some() {
+                        if let Some(last) = current_usage_segments.last_mut() {
+                            if last.context_window.is_none() {
+                                last.context_window = context_window;
+                            }
+                        }
+                    }
                 }
                 latest_turn_usage = Some(next_usage);
             } else if let Some(last_usage) = last_usage {
@@ -1649,6 +1679,36 @@ not valid json
         assert_eq!(parsed.tasks.len(), 1);
         assert_eq!(parsed.tasks[0].status, "completed");
         assert_eq!(parsed.tasks[0].input, 10);
+    }
+
+    #[test]
+    fn token_usage_records_are_counted_without_duplicating_matching_events() {
+        let path = temporary_jsonl(
+            r#"{"timestamp":"2026-11-23T08:00:00Z","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"2026-11-23T08:00:01Z","type":"turn_context","payload":{"model":"gpt-6.2-sol"}}
+{"timestamp":"2026-11-23T08:00:02Z","type":"response_item","payload":{"role":"user","content":[{"type":"input_text","text":"First task"}]}}
+{"timestamp":"2026-11-23T08:00:10Z","type":"token_usage_record","payload":{"usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":3},"turn_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":3},"thread_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":3}}}
+{"timestamp":"2026-11-23T08:00:10Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":3},"last_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10,"reasoning_output_tokens":3},"model_context_window":500000}}}
+{"timestamp":"2026-11-23T08:00:11Z","type":"event_msg","payload":{"type":"task_complete"}}
+{"timestamp":"2026-11-23T08:01:00Z","type":"event_msg","payload":{"type":"task_started"}}
+{"timestamp":"2026-11-23T08:01:01Z","type":"response_item","payload":{"role":"user","content":[{"type":"input_text","text":"Second task"}]}}
+{"timestamp":"2026-11-23T08:01:10Z","type":"token_usage_record","payload":{"usage":{"input_tokens":150,"cached_input_tokens":40,"output_tokens":20,"reasoning_output_tokens":5},"turn_token_usage":{"input_tokens":150,"cached_input_tokens":40,"output_tokens":20,"reasoning_output_tokens":5},"thread_token_usage":{"input_tokens":250,"cached_input_tokens":60,"output_tokens":30,"reasoning_output_tokens":8}}}
+{"timestamp":"2026-11-23T08:01:11Z","type":"event_msg","payload":{"type":"task_complete"}}
+"#,
+        );
+        let parsed = parse_session_file(&path).expect("modern usage records should parse");
+        fs::remove_file(&path).ok();
+
+        assert_eq!(parsed.tasks.len(), 2);
+        assert_eq!((parsed.tasks[0].input, parsed.tasks[0].output), (100, 10));
+        assert_eq!(parsed.tasks[0].usage_segments.len(), 1);
+        assert_eq!(
+            parsed.tasks[0].usage_segments[0].context_window,
+            Some(500000)
+        );
+        assert_eq!((parsed.tasks[1].input, parsed.tasks[1].output), (150, 20));
+        assert_eq!(parsed.tasks[1].cache, 40);
+        assert_eq!(parsed.tasks[1].usage_segments.len(), 1);
     }
 
     #[test]
